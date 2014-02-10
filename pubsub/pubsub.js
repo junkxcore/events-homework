@@ -2,9 +2,13 @@
  * Конструктор класса обмена сообщениями
  * @constructor
  */
-function PubSub(){
-};
-
+function PubSub(){}
+ 
+/**
+ * Объект событий
+ */
+PubSub.prototype.events = {};
+ 
 /**
  * Функция подписки на событие
  * @param  {string} eventName имя события
@@ -12,9 +16,21 @@ function PubSub(){
  * @return {function}         ссылка на handler
  */
 PubSub.prototype.subscribe = function(eventName, handler) {
+    if(!this.events[eventName]) {
+        this.events[eventName] = [];
+    }
+ 
+    if(typeof this === 'function') {
+        this.events[eventName].push(this);
+ 
+        return this;
+    }
+ 
+    this.events[eventName].push(handler);
+ 
     return handler;
 };
-
+ 
 /**
  * Функция отписки от события
  * @param  {string} eventName имя события
@@ -22,9 +38,19 @@ PubSub.prototype.subscribe = function(eventName, handler) {
  * @return {function}         ссылка на handler
  */
 PubSub.prototype.unsubscribe = function(eventName, handler) {
+    var thisEvents = this.events[eventName],
+        i = thisEvents.length - 1;
+ 
+        for(i; i >= 0; i--) {
+            if(thisEvents[i] === handler) {
+                thisEvents.splice(i,1);
+                console.log('Unsubscribe function - ' + handler.name + ' on ' + eventName + ' events');
+            }
+        }
+ 
     return handler;
 };
-
+ 
 /**
  * Функция генерирующая событие
  * @param  {string} eventName имя события
@@ -32,18 +58,36 @@ PubSub.prototype.unsubscribe = function(eventName, handler) {
  * @return {bool}             удачен ли результат операции
  */
 PubSub.prototype.publish = function(eventName, data) {
-    return false;
+    if(!this.events[eventName]) {
+        console.log('Error: Not a single one event with this name is not found');
+        return false;
+    }
+ 
+    var thisEvents = this.events[eventName],
+        i = thisEvents.length - 1;
+ 
+    for(i; i >= 0; i--) {
+        thisEvents[i].apply(this, arguments);
+    }
+ 
+    return true;
 };
-
+ 
 /**
  * Функция отписывающая все функции от определённого события
  * @param  {string} eventName имя события
  * @return {bool}             удачен ли результат операции
  */
 PubSub.prototype.off = function(eventName) {
-    return false;
+    if(!this.events[eventName]) {
+        return false;
+    }
+ 
+    delete this.events[eventName];
+    console.log('Unsubscribe all functions on ' + eventName + ' events');
+    return true;
 };
-
+ 
 /**
  * @example
  *
@@ -56,16 +100,55 @@ PubSub.prototype.off = function(eventName) {
  * //Отписать группу функций от события 'click'
  * PubSub.off('click');
  */
-
+ 
 /*
     Дополнительный вариант — без явного использования глобального объекта
     нужно заставить работать методы верно у любой функции
  */
-
-function foo(event, data) {
-    //body…
+ 
+ Function.prototype.events = PubSub.prototype.events;
+ Function.prototype.subscribe = PubSub.prototype.subscribe;
+ Function.prototype.unsubscribe = PubSub.prototype.unsubscribe;
+ Function.prototype.publish = PubSub.prototype.publish;
+ 
+// function foo() {
+//     console.log('this.name');
+// }
+ 
+// foo.subscribe('click');
+// foo.publish('click');
+ 
+// foo.unsubscribe('click');
+ 
+/* ===== TestArea ====== */
+function t(event, data) {
+    if(!data.text) {
+        console.log('function F init without arguments');
+        return;
+    }
+    console.log(data.text);
 }
-
-foo.subscribe('click');
-
-foo.unsubscribe('click');
+ 
+function n(event, data) {
+    if(!data.name) {
+        console.log('function G init without arguments');
+        return;
+    }
+    console.log(data.name);
+}
+ 
+function b(){
+    console.log('function B init');
+}
+ 
+var pubsub = new PubSub();
+ 
+pubsub.subscribe('click', function(event, data) { console.log(data); });
+pubsub.subscribe('click', t);
+pubsub.subscribe('click', n);
+pubsub.unsubscribe('click', t);
+pubsub.unsubscribe('click', b);
+pubsub.off('click');
+pubsub.publish('click', { text: 'Text data of function T', name: 'Name data of function N' });
+ 
+/* ===== END TestArea ====== */
